@@ -385,7 +385,11 @@
     if (img.dataset.url) URL.revokeObjectURL(img.dataset.url);
     img.dataset.url = URL.createObjectURL(shareFile);
     img.src = img.dataset.url;
-    $('shNative').hidden = !(navigator.canShare && navigator.canShare({ files: [shareFile] }));
+    const native = !!(navigator.canShare && navigator.canShare({ files: [shareFile] }));
+    $('shNative').hidden = !native;
+    // Op gsm/tablet zitten WhatsApp en Facebook al in het deelmenu van het toestel.
+    const mobile = native && matchMedia('(pointer: coarse)').matches;
+    $('shWhatsapp').hidden = $('shFacebook').hidden = mobile;
     $('shCopyImg').hidden = !(window.ClipboardItem && navigator.clipboard && navigator.clipboard.write);
   }
 
