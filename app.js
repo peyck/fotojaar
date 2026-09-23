@@ -282,16 +282,144 @@
     $('shareBtn').focus({ preventScroll: true });
   }
 
-  async function share() {
-    const total = items.reduce((s, it, i) => s + points(diffYears(state.g[i], it)), 0);
-    const squares = items.map((it, i) => TIER_EMOJI[tier(diffYears(state.g[i], it))]).join('');
-    const url = location.origin + location.pathname;
-    const text = `Fotojaar week ${weekIdx + 1}: ${total}/${MAX_PTS * items.length}\n${squares}\n${url}`;
-    if (navigator.share && matchMedia('(pointer: coarse)').matches) {
-      try { await navigator.share({ text }); return; } catch { /* geannuleerd */ }
-    }
-    try { await navigator.clipboard.writeText(text); toast('Resultaat gekopieerd'); }
-    catch { prompt('Kopieer je resultaat:', text); }
+  /* ---------- delen ---------- */
+
+  const SITE_URL = (document.querySelector('link[rel=canonical]') || {}).href || location.origin + location.pathname;
+  const shareUrl = () => (weekIdx === currentWeek ? SITE_URL : `${SITE_URL}?w=${weekIdx + 1}`);
+  let shareFile = null;
+
+  function shareSummary() {
+    const diffs = items.map((it, i) => diffYears(state.g[i], it));
+    const total = diffs.reduce((s, d) => s + points(d), 0);
+    return { diffs, total, max: MAX_PTS * items.length };
+  }
+
+  function shareText() {
+    const { diffs, total, max } = shareSummary();
+    const squares = diffs.map((d) => TIER_EMOJI[tier(d)]).join('');
+    return `Fotojaar week ${weekIdx + 1}: ${total}/${max} ${squares}\nRaad jij het jaar van deze oude foto's?`;
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  // Scorekaart als afbeelding (1080×1350, het portretformaat van Instagram).
+  // Bewust zonder de foto's en jaartallen, zodat niemand gespoild wordt.
+  async function makeShareImage() {
+    try { await Promise.all(['700 80px Fraunces', '400 30px Inter', '600 30px Inter'].map((f) => document.fonts.load(f))); } catch {}
+    const W = 1080, H = 1350;
+    const cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d');
+    const serif = 'Fraunces, Georgia, serif', sans = 'Inter, system-ui, sans-serif';
+    const { diffs, total, max } = shareSummary();
+
+    // achtergrond: papier met een fotokarton-kader
+    ctx.fillStyle = '#e9e0d0'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#fbf8f2'; roundRect(ctx, 50, 50, W - 100, H - 100, 28); ctx.fill();
+    ctx.strokeStyle = '#d6c7ae'; ctx.lineWidth = 3; roundRect(ctx, 74, 74, W - 148, H - 148, 18); ctx.stroke();
+
+    // kop
+    ctx.fillStyle = '#8a5a2b'; roundRect(ctx, 130, 138, 58, 48, 6); ctx.fill();
+    ctx.fillStyle = '#fbf8f2'; ctx.fillRect(138, 146, 42, 32);
+    ctx.fillStyle = '#8a5a2b'; ctx.beginPath(); ctx.arc(159, 162, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#2b2420'; ctx.font = `700 64px ${serif}`; ctx.textBaseline = 'middle';
+    ctx.fillText('Fotojaar', 210, 164);
+    ctx.fillStyle = '#7a6d62'; ctx.font = `400 34px ${sans}`; ctx.textAlign = 'right';
+    ctx.fillText(`Week ${weekIdx + 1}`, W - 130, 166);
+
+    // totaalscore
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#7a6d62'; ctx.font = `400 32px ${sans}`;
+    ctx.fillText('mijn score', W / 2, 270);
+    ctx.fillStyle = '#2b2420'; ctx.font = `700 170px ${serif}`;
+    const tw = ctx.measureText(String(total)).width;
+    ctx.font = `700 54px ${serif}`;
+    const mw = ctx.measureText(` / ${max}`).width;
+    const sx = W / 2 - (tw + mw) / 2;
+    ctx.textAlign = 'left';
+    ctx.font = `700 170px ${serif}`; ctx.fillText(String(total), sx, 380);
+    ctx.fillStyle = '#9a8b7c'; ctx.font = `700 54px ${serif}`; ctx.fillText(` / ${max}`, sx + tw, 410);
+
+    // per foto een rij
+    const top = 500, rowH = 118, x0 = 130, x1 = W - 130;
+    diffs.forEach((d, i) => {
+      const y = top + i * rowH, t = tier(d), p = points(d);
+      ctx.fillStyle = TIER_COLOR[t]; roundRect(ctx, x0, y, 76, 76, 14); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = `600 36px ${sans}`; ctx.textAlign = 'center';
+      ctx.fillText(String(i + 1), x0 + 38, y + 40);
+      ctx.textAlign = 'left'; ctx.fillStyle = '#2b2420'; ctx.font = `600 36px ${sans}`;
+      ctx.fillText(d === 0 ? 'Precies juist!' : `${d} jaar ernaast`, x0 + 104, y + 26);
+      // puntenbalk
+      const bx = x0 + 104, bw = x1 - bx - 120;
+      ctx.fillStyle = '#ece3d4'; roundRect(ctx, bx, y + 56, bw, 14, 7); ctx.fill();
+      if (p > 0) { ctx.fillStyle = TIER_COLOR[t]; roundRect(ctx, bx, y + 56, Math.max(14, bw * p / MAX_PTS), 14, 7); ctx.fill(); }
+      ctx.textAlign = 'right'; ctx.fillStyle = '#2b2420'; ctx.font = `700 44px ${serif}`;
+      ctx.fillText(String(p), x1, y + 40);
+    });
+
+    // voet met link
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#2b2420'; ctx.font = `700 46px ${serif}`;
+    ctx.fillText('Raad jij het jaar?', W / 2, 1150);
+    ctx.fillStyle = '#8a5a2b'; ctx.font = `600 36px ${sans}`;
+    ctx.fillText(SITE_URL.replace(/^https?:\/\//, '').replace(/\/$/, ''), W / 2, 1210);
+
+    const blob = await new Promise((res) => cv.toBlob(res, 'image/png'));
+    return new File([blob], `fotojaar-week-${weekIdx + 1}.png`, { type: 'image/png' });
+  }
+
+  async function openShare() {
+    const dlg = $('shareDlg');
+    $('shareImg').removeAttribute('src');
+    dlg.showModal();
+    shareFile = await makeShareImage();
+    const img = $('shareImg');
+    if (img.dataset.url) URL.revokeObjectURL(img.dataset.url);
+    img.dataset.url = URL.createObjectURL(shareFile);
+    img.src = img.dataset.url;
+    $('shNative').hidden = !(navigator.canShare && navigator.canShare({ files: [shareFile] }));
+    $('shCopyImg').hidden = !(window.ClipboardItem && navigator.clipboard && navigator.clipboard.write);
+  }
+
+  const openWin = (url) => window.open(url, '_blank', 'noopener');
+
+  function bindShare() {
+    $('shareBtn').addEventListener('click', openShare);
+    $('shNative').addEventListener('click', async () => {
+      try {
+        await navigator.share({ files: [shareFile], title: 'Fotojaar', text: `${shareText()}\n${shareUrl()}` });
+      } catch { /* geannuleerd */ }
+    });
+    $('shWhatsapp').addEventListener('click', () =>
+      openWin('https://wa.me/?text=' + encodeURIComponent(`${shareText()}\n${shareUrl()}`)));
+    $('shFacebook').addEventListener('click', () =>
+      openWin('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(shareUrl())));
+    $('shEmail').addEventListener('click', () => {
+      location.href = 'mailto:?subject=' + encodeURIComponent(`Fotojaar – week ${weekIdx + 1}`) +
+        '&body=' + encodeURIComponent(`${shareText()}\n\nSpeel mee: ${shareUrl()}`);
+    });
+    $('shDownload').addEventListener('click', () => {
+      if (!shareFile) return;
+      const a = document.createElement('a');
+      a.href = $('shareImg').dataset.url; a.download = shareFile.name; a.click();
+    });
+    $('shCopyImg').addEventListener('click', async () => {
+      try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': shareFile })]); toast('Afbeelding gekopieerd'); }
+      catch { toast('Kopiëren lukte niet – bewaar de afbeelding'); }
+    });
+    $('shCopyText').addEventListener('click', async () => {
+      const t = `${shareText()}\n${shareUrl()}`;
+      try { await navigator.clipboard.writeText(t); toast('Tekst en link gekopieerd'); }
+      catch { prompt('Kopieer je resultaat:', t); }
+    });
   }
 
   /* ---------- archief & statistiek ---------- */
@@ -370,7 +498,7 @@
       b.addEventListener('click', () => setYear(+r.value + +b.dataset.step)));
     $('guessBtn').addEventListener('click', confirmGuess);
     $('nextBtn').addEventListener('click', next);
-    $('shareBtn').addEventListener('click', share);
+    bindShare();
     $('photo').addEventListener('click', () => openLightbox(items[pos].src));
     $('zoomBtn').addEventListener('click', () => openLightbox(items[pos].src));
 
