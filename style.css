@@ -1,3 +1,20 @@
+/* Lettertypes lokaal (geen Google Fonts): variabele woff2, Latijnse subset,
+   via Fontsource. Licentie: SIL OFL 1.1 – zie fonts/LICENSE-*.txt */
+@font-face {
+  font-family: "Fraunces";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(fonts/fraunces.woff2) format("woff2-variations"), url(fonts/fraunces.woff2) format("woff2");
+}
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url(fonts/inter.woff2) format("woff2-variations"), url(fonts/inter.woff2) format("woff2");
+}
+
 :root {
   --bg: #f4efe6;
   --paper: #fbf8f2;
