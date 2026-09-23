@@ -64,6 +64,14 @@
     try { localStorage.setItem(STORE + 'w' + weekIdx, JSON.stringify(state)); } catch { /* privémodus */ }
   }
 
+  // Anonieme gebeurtenis voor GoatCounter (geen scores of persoonsgegevens).
+  function track(path, title) {
+    try {
+      if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path, title: title || path, event: true });
+    } catch { /* teller geblokkeerd of niet geladen */ }
+  }
+  const weekTag = () => `week-${weekIdx + 1}` + (weekIdx === currentWeek ? '' : '-archief');
+
   function toast(msg) {
     const t = $('toast');
     t.textContent = msg;
@@ -181,6 +189,8 @@
     const g = +$('yearRange').value;
     state.g[pos] = g;
     save();
+    if (pos === 0) track(`gestart/${weekTag()}`, `Week ${weekIdx + 1} gestart`);
+    if (pos === items.length - 1) track(`voltooid/${weekTag()}`, `Week ${weekIdx + 1} uitgespeeld`);
     reveal(pos, g);
   }
 
@@ -378,6 +388,7 @@
 
   async function openShare() {
     const dlg = $('shareDlg');
+    track('delen/venster', 'Deelvenster geopend');
     $('shareImg').removeAttribute('src');
     dlg.showModal();
     shareFile = await makeShareImage();
@@ -397,6 +408,11 @@
 
   function bindShare() {
     $('shareBtn').addEventListener('click', openShare);
+    const channels = { shNative: 'deelmenu', shWhatsapp: 'whatsapp', shFacebook: 'facebook', shEmail: 'e-mail',
+      shDownload: 'afbeelding-bewaard', shCopyImg: 'afbeelding-gekopieerd', shCopyText: 'tekst-gekopieerd' };
+    for (const [id, ch] of Object.entries(channels)) {
+      $(id).addEventListener('click', () => track(`delen/${ch}`, `Gedeeld via ${ch}`));
+    }
     $('shNative').addEventListener('click', async () => {
       try {
         await navigator.share({ files: [shareFile], title: 'Fotojaar', text: `${shareText()}\n${shareUrl()}` });
