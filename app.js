@@ -40,7 +40,8 @@
     for (let i = 0; i < per; i++) {
       const raw = all[(n * per + i) % all.length];
       const secret = decode(raw.s);
-      list.push({ src: raw.f, w: raw.w, h: raw.h, from: secret.y[0], to: secret.y[1], caption: secret.c || '' });
+      list.push({ src: raw.f, w: raw.w, h: raw.h, from: secret.y[0], to: secret.y[1],
+        caption: secret.c || '', story: secret.v || '' });
     }
     return list;
   }
@@ -205,6 +206,8 @@
     $('actualYear').textContent = yearLabel(it);
     $('pointsOut').textContent = pts;
     $('caption').textContent = it.caption;
+    $('story').hidden = !it.story;
+    $('storyText').textContent = it.story;
 
     let v;
     if (d === 0) v = 'Precies juist!';
@@ -265,6 +268,12 @@
         c.textContent = it.caption;
         txt.appendChild(c);
       }
+      if (it.story) {
+        const s = document.createElement('div');
+        s.className = 'r-story';
+        s.textContent = it.story;
+        txt.appendChild(s);
+      }
       const pts = document.createElement('div');
       pts.className = 'r-pts';
       pts.textContent = p;
@@ -282,14 +291,78 @@
       f >= 0.35 ? 'Niet slecht, de mode verraadt veel.' :
       'Tijdreizen is lastig. Volgende week beter!';
 
+    const st = computeStats();
+    const streakEl = $('streak');
+    streakEl.hidden = weekIdx !== currentWeek;
     if (weekIdx === currentWeek) {
+      streakEl.textContent = st.streak > 1
+        ? `🔥 ${st.streak} weken op rij! Kom maandag terug om je reeks te houden.`
+        : '🔥 Je eerste week in de reeks. Kom maandag terug voor week ' + (currentWeek + 2) + '.';
       const nextStart = weekStart(currentWeek + 1);
       const days = Math.round((nextStart - dayUTC(new Date())) / DAY);
-      $('nextWeek').textContent = `Nieuwe foto's ${days <= 1 ? 'morgen' : `over ${days} dagen`} (maandag ${fmtDate(nextStart, { day: 'numeric', month: 'long' })}).`;
+      $('nextWeek').textContent = `Nieuwe foto's ${days <= 1 ? 'morgen' : `over ${days} dagen`}, maandag ${fmtDate(nextStart, { day: 'numeric', month: 'long' })}.`;
     } else {
       $('nextWeek').innerHTML = '<a href="./">Naar de foto\'s van deze week</a>';
     }
+    updateInstallUI();
     $('shareBtn').focus({ preventScroll: true });
+  }
+
+  /* ---------- terugkomen: agenda en app ---------- */
+
+  const pad2 = (n) => String(n).padStart(2, '0');
+  function googleCalUrl() {
+    const d = new Date(weekStart(currentWeek + 1));
+    const ymd = `${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}`;
+    const p = new URLSearchParams({
+      action: 'TEMPLATE',
+      text: "Fotojaar – nieuwe foto's",
+      dates: `${ymd}T090000/${ymd}T091500`,
+      ctz: 'Europe/Brussels',
+      recur: 'RRULE:FREQ=WEEKLY;BYDAY=MO',
+      details: `Vijf nieuwe historische foto's staan klaar. Raad jij het jaar?\n${SITE_URL}`,
+    });
+    return 'https://calendar.google.com/calendar/render?' + p.toString();
+  }
+
+  let installPrompt = null;
+  const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  // meteen registreren: dit event kan komen nog voor de fotolijst geladen is
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    installPrompt = e;
+    updateInstallUI();
+  });
+  const isIOS = () =>/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  function updateInstallUI() {
+    const standalone = isStandalone();
+    $('installBtn').hidden = standalone || !installPrompt;
+    $('iosHint').hidden = standalone || !isIOS();
+  }
+
+  function bindComeback() {
+    $('calGoogle').addEventListener('click', () => {
+      track('herinnering/google', 'Herinnering in Google Agenda');
+      window.open(googleCalUrl(), '_blank', 'noopener');
+    });
+    $('calIcs').addEventListener('click', () => track('herinnering/ics', 'Herinnering via .ics'));
+    $('installBtn').addEventListener('click', async () => {
+      if (!installPrompt) return;
+      track('app/installeren', 'Installatie gevraagd');
+      installPrompt.prompt();
+      try { await installPrompt.userChoice; } catch {}
+      installPrompt = null;
+      updateInstallUI();
+    });
+    window.addEventListener('appinstalled', () => {
+      track('app/geinstalleerd', 'App geïnstalleerd');
+      toast('Fotojaar staat op je beginscherm');
+      installPrompt = null;
+      updateInstallUI();
+    });
+    if (isStandalone()) track('app/geopend', 'Geopend als app');
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 
   /* ---------- delen ---------- */
@@ -465,7 +538,7 @@
     }
   }
 
-  function renderStats() {
+  function computeStats() {
     let played = 0, sum = 0, best = 0, streak = 0, streakOpen = true;
     const tiers = [0, 0, 0, 0];
     for (let n = currentWeek; n >= 0; n--) {
@@ -485,6 +558,11 @@
         else if (n !== currentWeek) streakOpen = false;
       }
     }
+    return { played, sum, best, streak, tiers };
+  }
+
+  function renderStats() {
+    const { played, sum, best, streak, tiers } = computeStats();
     const cells = [
       [played, 'weken gespeeld'],
       [played ? Math.round(sum / played) : 0, 'gemiddelde'],
@@ -519,6 +597,7 @@
     $('guessBtn').addEventListener('click', confirmGuess);
     $('nextBtn').addEventListener('click', next);
     bindShare();
+    bindComeback();
     $('photo').addEventListener('click', () => openLightbox(items[pos].src));
     $('zoomBtn').addEventListener('click', () => openLightbox(items[pos].src));
 
