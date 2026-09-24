@@ -41,7 +41,7 @@
       const raw = all[(n * per + i) % all.length];
       const secret = decode(raw.s);
       list.push({ src: raw.f, w: raw.w, h: raw.h, from: secret.y[0], to: secret.y[1],
-        caption: secret.c || '', story: secret.v || '' });
+        caption: secret.c || '', story: secret.v || '', keywords: Array.isArray(secret.k) ? secret.k : [] });
     }
     return list;
   }
@@ -91,6 +91,24 @@
       last = re.lastIndex;
     }
     if (last < text.length) el.appendChild(document.createTextNode(text.slice(last)));
+  }
+
+  // Keywords als labels; [label, url] met een http(s)-url wordt een link.
+  function renderTags(el, tags) {
+    el.textContent = '';
+    for (const [label, url] of tags) {
+      let t;
+      if (url && /^https?:\/\//.test(url)) {
+        t = document.createElement('a');
+        t.href = url; t.target = '_blank'; t.rel = 'noopener';
+        t.addEventListener('click', () => track('verhaal/link', 'Link in trefwoord: ' + label));
+      } else {
+        t = document.createElement('span');
+      }
+      t.className = 'tag';
+      t.textContent = label;
+      el.appendChild(t);
+    }
   }
 
   function toast(msg) {
@@ -226,8 +244,10 @@
     $('actualYear').textContent = yearLabel(it);
     $('pointsOut').textContent = pts;
     $('caption').textContent = it.caption;
-    $('story').hidden = !it.story;
+    $('story').hidden = !it.story && !it.keywords.length;
+    $('storyText').hidden = !it.story;
     renderRich($('storyText'), it.story);
+    renderTags($('storyTags'), it.keywords);
 
     let v;
     if (d === 0) v = 'Precies juist!';
@@ -293,6 +313,12 @@
         s.className = 'r-story';
         renderRich(s, it.story);
         txt.appendChild(s);
+      }
+      if (it.keywords.length) {
+        const k = document.createElement('div');
+        k.className = 'tags small-tags';
+        renderTags(k, it.keywords);
+        txt.appendChild(k);
       }
       const pts = document.createElement('div');
       pts.className = 'r-pts';

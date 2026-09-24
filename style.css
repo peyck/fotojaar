@@ -172,6 +172,17 @@ dialog button:not(.primary) { border: 1px solid var(--line); background: transpa
 .story-label { margin: 0 0 2px; font-size: .75rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
 .story-text { margin: 0; font-family: Fraunces, Georgia, serif; font-size: 1.02rem; line-height: 1.5; white-space: pre-line; }
 .story-text a, .r-story a { color: var(--accent); text-underline-offset: 2px; overflow-wrap: anywhere; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.tags:empty { display: none; }
+.tag {
+  font-size: .78rem; line-height: 1; padding: 5px 9px; border-radius: 999px;
+  background: var(--paper); border: 1px solid var(--line); color: var(--muted); text-decoration: none;
+}
+a.tag { color: var(--accent); border-color: var(--accent); }
+a.tag::after { content: " ↗"; font-size: .9em; }
+a.tag:hover { background: var(--accent); color: var(--accent-ink); }
+.small-tags { margin-top: 5px; gap: 4px; }
+.small-tags .tag { font-size: .7rem; padding: 3px 7px; }
 .results .r-story { font-size: .85rem; margin-top: 4px; white-space: pre-line; }
 
 /* Terugkomen */
