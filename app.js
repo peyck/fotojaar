@@ -644,6 +644,8 @@
     $('nextBtn').addEventListener('click', next);
     bindShare();
     bindComeback();
+    document.querySelectorAll('[data-track]').forEach((a) =>
+      a.addEventListener('click', () => track(a.dataset.track, 'Gids foto\'s dateren geopend')));
     $('photo').addEventListener('click', () => openLightbox(items[pos].src));
     $('zoomBtn').addEventListener('click', () => openLightbox(items[pos].src));
 

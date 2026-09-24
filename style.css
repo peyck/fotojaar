@@ -185,6 +185,22 @@ a.tag:hover { background: var(--accent); color: var(--accent-ink); }
 .small-tags .tag { font-size: .7rem; padding: 3px 7px; }
 .results .r-story { font-size: .85rem; margin-top: 4px; white-space: pre-line; }
 
+/* Link naar de gids */
+.learn {
+  display: flex; align-items: center; gap: 14px; margin: 18px auto 0; max-width: 560px;
+  padding: 14px 16px; border-radius: 12px; text-decoration: none; color: inherit;
+  background: var(--bg); border: 1px solid var(--accent);
+}
+.learn:hover { background: var(--accent); color: var(--accent-ink); }
+.learn:hover .learn-text span, .learn:hover .learn-icon { color: inherit; }
+.learn-icon { flex: none; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: var(--accent); border: 1px solid currentColor; }
+.learn-icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.learn-text { display: grid; gap: 2px; flex: 1; }
+.learn-text b { font-family: Fraunces, Georgia, serif; font-size: 1.05rem; }
+.learn-text span { font-size: .85rem; color: var(--muted); }
+.learn-arrow { font-size: 1.4rem; }
+#help a { color: var(--accent); }
+
 /* Terugkomen */
 .streak { text-align: center; font-weight: 600; margin: -8px 0 16px; }
 .comeback { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); display: grid; gap: 10px; justify-items: center; }
