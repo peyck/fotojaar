@@ -366,7 +366,7 @@
       dates: `${ymd}T090000/${ymd}T091500`,
       ctz: 'Europe/Brussels',
       recur: 'RRULE:FREQ=WEEKLY;BYDAY=MO',
-      details: `Vijf nieuwe historische foto's staan klaar. Raad jij het jaar?\n${SITE_URL}`,
+      details: `Vijf nieuwe historische foto's staan klaar. Raad jij het jaar van de foto?\n${SITE_URL}`,
     });
     return 'https://calendar.google.com/calendar/render?' + p.toString();
   }
@@ -497,7 +497,7 @@
     // voet met link
     ctx.textAlign = 'center';
     ctx.fillStyle = '#2b2420'; ctx.font = `700 46px ${serif}`;
-    ctx.fillText('Raad jij het jaar?', W / 2, 1150);
+    ctx.fillText('Raad jij het jaar van de foto?', W / 2, 1150);
     ctx.fillStyle = '#8a5a2b'; ctx.font = `600 36px ${sans}`;
     ctx.fillText(SITE_URL.replace(/^https?:\/\//, '').replace(/\/$/, ''), W / 2, 1210);
 

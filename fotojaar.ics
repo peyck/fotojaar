@@ -28,7 +28,7 @@ DTSTART;TZID=Europe/Brussels:20260921T090000
 DTEND;TZID=Europe/Brussels:20260921T091500
 RRULE:FREQ=WEEKLY;BYDAY=MO
 SUMMARY:Fotojaar – nieuwe foto's
-DESCRIPTION:Vijf nieuwe historische foto's staan klaar. Raad jij het jaar?\nhttps://peyck.github.io/fotojaar/
+DESCRIPTION:Vijf nieuwe historische foto's staan klaar. Raad jij het jaar van de foto?\nhttps://peyck.github.io/fotojaar/
 URL:https://peyck.github.io/fotojaar/
 TRANSP:TRANSPARENT
 BEGIN:VALARM
