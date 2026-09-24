@@ -73,6 +73,26 @@
   }
   const weekTag = () => `week-${weekIdx + 1}` + (weekIdx === currentWeek ? '' : '-archief');
 
+  // Verhaaltekst met links: [tekst](https://…) of een losse https://-URL.
+  // Wordt als DOM opgebouwd (geen innerHTML), alleen http(s) is toegelaten.
+  function renderRich(el, text) {
+    el.textContent = '';
+    const re = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>()]+[^\s<>().,;:!?'"”])/g;
+    let last = 0, m;
+    while ((m = re.exec(text))) {
+      if (m.index > last) el.appendChild(document.createTextNode(text.slice(last, m.index)));
+      const a = document.createElement('a');
+      a.href = m[2] || m[3];
+      a.textContent = m[1] || m[3].replace(/^https?:\/\/(www\.)?/, '');
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.addEventListener('click', () => track('verhaal/link', 'Link in verhaal: ' + a.hostname));
+      el.appendChild(a);
+      last = re.lastIndex;
+    }
+    if (last < text.length) el.appendChild(document.createTextNode(text.slice(last)));
+  }
+
   function toast(msg) {
     const t = $('toast');
     t.textContent = msg;
@@ -207,7 +227,7 @@
     $('pointsOut').textContent = pts;
     $('caption').textContent = it.caption;
     $('story').hidden = !it.story;
-    $('storyText').textContent = it.story;
+    renderRich($('storyText'), it.story);
 
     let v;
     if (d === 0) v = 'Precies juist!';
@@ -271,7 +291,7 @@
       if (it.story) {
         const s = document.createElement('div');
         s.className = 'r-story';
-        s.textContent = it.story;
+        renderRich(s, it.story);
         txt.appendChild(s);
       }
       const pts = document.createElement('div');
