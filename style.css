@@ -260,6 +260,7 @@ dialog .sharebtns button:hover { border-color: var(--accent); }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
 .foot { text-align: center; padding: 18px 16px 24px; }
+.foot a { color: var(--accent); text-underline-offset: 2px; }
 
 @media (max-width: 560px) {
   .photo { height: 46vh; height: 46svh; }
