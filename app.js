@@ -8,6 +8,9 @@
   const MAX_PTS = 1000;
   const STORE = 'fotojaar:v1:';
   const $ = (id) => document.getElementById(id);
+  // Teksten uit lang.js (site_template/lang/*.json): {naam} wordt ingevuld, key_one geldt bij n = 1.
+  const I = window.I18N || {};
+  const T = (k, v = {}) => ((v.n === 1 && I[k + '_one']) || I[k] || k).replace(/\{(\w+)\}/g, (m, x) => (x in v ? v[x] : m));
 
   let data = null;       // inhoud van photos.json
   let weekIdx = 0;       // welke week wordt gespeeld
@@ -22,7 +25,7 @@
   // Kalenderdag in lokale tijd, als UTC-middernacht (vermijdt zomeruur-gedoe).
   const dayUTC = (d) => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
   const parseISO = (s) => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); };
-  const fmtDate = (t, opts) => new Date(t).toLocaleDateString('nl-BE', { timeZone: 'UTC', ...opts });
+  const fmtDate = (t, opts) => new Date(t).toLocaleDateString(I.locale || 'nl-BE', { timeZone: 'UTC', ...opts });
 
   function weekStart(n) { return parseISO(data.start) + n * 7 * DAY; }
 
@@ -126,10 +129,10 @@
       const res = await fetch('data/photos.json', { cache: 'no-cache' });
       data = await res.json();
     } catch (e) {
-      showEmpty('De fotolijst kon niet geladen worden.');
+      showEmpty(T('list_failed'));
       return;
     }
-    if (!data.items || data.items.length < data.perWeek) { showEmpty('Nog niet genoeg foto\'s beschikbaar.'); return; }
+    if (!data.items || data.items.length < data.perWeek) { showEmpty(T('not_enough')); return; }
 
     currentWeek = Math.max(0, Math.floor((dayUTC(new Date()) - parseISO(data.start)) / (7 * DAY)));
     const q = new URLSearchParams(location.search).get('w');
@@ -144,10 +147,10 @@
     r.min = data.minYear; r.max = data.maxYear;
     buildScale();
 
-    $('weekTitle').textContent = `Week ${weekIdx + 1}` + (weekIdx === currentWeek ? '' : ' (archief)');
+    $('weekTitle').textContent = T('week_n', { n: weekIdx + 1 }) + (weekIdx === currentWeek ? '' : T('archive_suffix'));
     const s = weekStart(weekIdx);
     $('weekRange').textContent = `${fmtDate(s, { day: 'numeric', month: 'long' })} – ${fmtDate(s + 6 * DAY, { day: 'numeric', month: 'long', year: 'numeric' })}`;
-    $('countInfo').textContent = `${data.items.length} foto's in de verzameling`;
+    $('countInfo').textContent = T('count_info', { n: data.items.length });
 
     bindUI();
     if (!localStorage.getItem(STORE + 'seenHelp')) {
@@ -187,7 +190,7 @@
         const d = diffYears(state.g[i], it);
         li.classList.add('scored');
         li.style.background = TIER_COLOR[tier(d)];
-        li.title = `${points(d)} punten`;
+        li.title = T('points_title', { n: points(d) });
       } else if (i === pos && !$('play').hidden) {
         li.classList.add('current');
       }
@@ -214,7 +217,7 @@
     img.classList.remove('ready');
     $('photoLoading').hidden = false;
     img.onload = () => { img.classList.add('ready'); $('photoLoading').hidden = true; };
-    img.onerror = () => { $('photoLoading').textContent = 'Foto kon niet geladen worden.'; };
+    img.onerror = () => { $('photoLoading').textContent = T('photo_failed'); };
     img.src = items[i].src;
     if (items[i + 1]) new Image().src = items[i + 1].src; // alvast de volgende laden
 
@@ -250,9 +253,9 @@
     renderTags($('storyTags'), it.keywords);
 
     let v;
-    if (d === 0) v = 'Precies juist!';
-    else if (g < it.from) v = `${d} jaar te vroeg`;
-    else v = `${d} jaar te laat`;
+    if (d === 0) v = T('verdict_exact');
+    else if (g < it.from) v = T('too_early', { n: d });
+    else v = T('too_late', { n: d });
     $('verdict').textContent = TIER_EMOJI[tier(d)] + ' ' + v;
 
     // Tijdlijn: venster rond gok en juiste jaar
@@ -263,7 +266,7 @@
     const mid = (it.from + it.to) / 2;
     const mg = $('markGuess'), ma = $('markActual'), gap = $('trackGap');
     mg.style.left = ma.style.left = pct((a + b) / 2);
-    mg.querySelector('span').textContent = `jouw gok ${g}`;
+    mg.querySelector('span').textContent = T('your_guess', { g });
     ma.querySelector('span').textContent = yearLabel(it);
     gap.style.left = pct(Math.min(g, mid));
     gap.style.width = '0%';
@@ -273,7 +276,7 @@
       gap.style.width = `calc(${pct(Math.max(g, mid))} - ${pct(Math.min(g, mid))})`;
     }));
 
-    $('nextBtn').textContent = i + 1 < items.length ? 'Volgende foto' : 'Bekijk je score';
+    $('nextBtn').textContent = i + 1 < items.length ? T('next_photo') : T('see_score');
     renderPips();
     $('nextBtn').focus({ preventScroll: true });
     $('revealPanel').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -298,10 +301,10 @@
       total += p;
       const li = document.createElement('li');
       const img = document.createElement('img');
-      img.src = it.src; img.alt = `Foto ${i + 1}`; img.loading = 'lazy';
+      img.src = it.src; img.alt = T('photo_n', { n: i + 1 }); img.loading = 'lazy';
       img.addEventListener('click', () => openLightbox(it.src));
       const txt = document.createElement('div');
-      txt.innerHTML = `<div class="r-years">${TIER_EMOJI[tier(d)]} ${yearLabel(it)}</div><div class="muted small">jouw gok: ${g}${d ? ` (${d} jaar ernaast)` : ''}</div>`;
+      txt.innerHTML = `<div class="r-years">${TIER_EMOJI[tier(d)]} ${yearLabel(it)}</div><div class="muted small">${T('your_guess_res', { g })}${d ? T('off_by', { n: d }) : ''}</div>`;
       if (it.caption) {
         const c = document.createElement('div');
         c.className = 'muted small';
@@ -331,24 +334,25 @@
     $('maxOut').textContent = max;
     const f = total / max;
     $('rating').textContent =
-      f >= 0.9 ? 'Archivaris met röntgenblik!' :
-      f >= 0.75 ? 'Uitstekend – jij kent je fotokartons.' :
-      f >= 0.55 ? 'Goed gedaan!' :
-      f >= 0.35 ? 'Niet slecht, de mode verraadt veel.' :
-      'Tijdreizen is lastig. Volgende week beter!';
+      f >= 0.9 ? I.ratings[0] :
+      f >= 0.75 ? I.ratings[1] :
+      f >= 0.55 ? I.ratings[2] :
+      f >= 0.35 ? I.ratings[3] :
+      I.ratings[4];
 
     const st = computeStats();
     const streakEl = $('streak');
     streakEl.hidden = weekIdx !== currentWeek;
     if (weekIdx === currentWeek) {
       streakEl.textContent = st.streak > 1
-        ? `🔥 ${st.streak} weken op rij! Kom maandag terug om je reeks te houden.`
-        : '🔥 Je eerste week in de reeks. Kom maandag terug voor week ' + (currentWeek + 2) + '.';
+        ? T('streak_many', { n: st.streak })
+        : T('streak_first', { n: currentWeek + 2 });
       const nextStart = weekStart(currentWeek + 1);
       const days = Math.round((nextStart - dayUTC(new Date())) / DAY);
-      $('nextWeek').textContent = `Nieuwe foto's ${days <= 1 ? 'morgen' : `over ${days} dagen`}, maandag ${fmtDate(nextStart, { day: 'numeric', month: 'long' })}.`;
+      $('nextWeek').textContent = T('next_week', { when: days <= 1 ? T('tomorrow') : T('in_days', { n: days }), date: fmtDate(nextStart, { day: 'numeric', month: 'long' }) });
     } else {
-      $('nextWeek').innerHTML = '<a href="./">Naar de foto\'s van deze week</a>';
+      $('nextWeek').innerHTML = '<a href="./"></a>';
+      $('nextWeek').firstChild.textContent = T('to_this_week');
     }
     updateInstallUI();
     $('shareBtn').focus({ preventScroll: true });
@@ -362,11 +366,11 @@
     const ymd = `${d.getUTCFullYear()}${pad2(d.getUTCMonth() + 1)}${pad2(d.getUTCDate())}`;
     const p = new URLSearchParams({
       action: 'TEMPLATE',
-      text: "Fotojaar – nieuwe foto's",
+      text: T('cal_title', { title: I.title }),
       dates: `${ymd}T090000/${ymd}T091500`,
       ctz: 'Europe/Brussels',
       recur: 'RRULE:FREQ=WEEKLY;BYDAY=MO',
-      details: `Vijf nieuwe historische foto's staan klaar. Raad jij het jaar van de foto?\n${SITE_URL}`,
+      details: `${T('cal_details', { count: I.count_word })}\n${SITE_URL}`,
     });
     return 'https://calendar.google.com/calendar/render?' + p.toString();
   }
@@ -403,7 +407,7 @@
     });
     window.addEventListener('appinstalled', () => {
       track('app/geinstalleerd', 'App geïnstalleerd');
-      toast('Fotojaar staat op je beginscherm');
+      toast(T('installed_toast', { title: I.title }));
       installPrompt = null;
       updateInstallUI();
     });
@@ -426,7 +430,7 @@
   function shareText() {
     const { diffs, total, max } = shareSummary();
     const squares = diffs.map((d) => TIER_EMOJI[tier(d)]).join('');
-    return `Fotojaar week ${weekIdx + 1}: ${total}/${max} ${squares}\nRaad jij het jaar van deze oude foto's?`;
+    return T('share_text', { title: I.title, w: weekIdx + 1, total, max, squares });
   }
 
   function roundRect(ctx, x, y, w, h, r) {
@@ -460,14 +464,14 @@
     ctx.fillStyle = '#fbf8f2'; ctx.fillRect(138, 146, 42, 32);
     ctx.fillStyle = '#8a5a2b'; ctx.beginPath(); ctx.arc(159, 162, 10, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#2b2420'; ctx.font = `700 64px ${serif}`; ctx.textBaseline = 'middle';
-    ctx.fillText('Fotojaar', 210, 164);
+    ctx.fillText(I.title || 'Fotojaar', 210, 164, 560);
     ctx.fillStyle = '#7a6d62'; ctx.font = `400 34px ${sans}`; ctx.textAlign = 'right';
-    ctx.fillText(`Week ${weekIdx + 1}`, W - 130, 166);
+    ctx.fillText(T('canvas_week', { n: weekIdx + 1 }), W - 130, 166);
 
     // totaalscore
     ctx.textAlign = 'center';
     ctx.fillStyle = '#7a6d62'; ctx.font = `400 32px ${sans}`;
-    ctx.fillText('mijn score', W / 2, 270);
+    ctx.fillText(T('canvas_score'), W / 2, 270);
     ctx.fillStyle = '#2b2420'; ctx.font = `700 170px ${serif}`;
     const tw = ctx.measureText(String(total)).width;
     ctx.font = `700 54px ${serif}`;
@@ -485,7 +489,7 @@
       ctx.fillStyle = '#fff'; ctx.font = `600 36px ${sans}`; ctx.textAlign = 'center';
       ctx.fillText(String(i + 1), x0 + 38, y + 40);
       ctx.textAlign = 'left'; ctx.fillStyle = '#2b2420'; ctx.font = `600 36px ${sans}`;
-      ctx.fillText(d === 0 ? 'Precies juist!' : `${d} jaar ernaast`, x0 + 104, y + 26);
+      ctx.fillText(d === 0 ? T('verdict_exact') : T('years_off', { n: d }), x0 + 104, y + 26);
       // puntenbalk
       const bx = x0 + 104, bw = x1 - bx - 120;
       ctx.fillStyle = '#ece3d4'; roundRect(ctx, bx, y + 56, bw, 14, 7); ctx.fill();
@@ -497,7 +501,7 @@
     // voet met link
     ctx.textAlign = 'center';
     ctx.fillStyle = '#2b2420'; ctx.font = `700 46px ${serif}`;
-    ctx.fillText('Raad jij het jaar van de foto?', W / 2, 1150);
+    ctx.fillText(T('canvas_cta'), W / 2, 1150, W - 200);
     ctx.fillStyle = '#8a5a2b'; ctx.font = `600 36px ${sans}`;
     ctx.fillText(SITE_URL.replace(/^https?:\/\//, '').replace(/\/$/, ''), W / 2, 1210);
 
@@ -534,7 +538,7 @@
     }
     $('shNative').addEventListener('click', async () => {
       try {
-        await navigator.share({ files: [shareFile], title: 'Fotojaar', text: `${shareText()}\n${shareUrl()}` });
+        await navigator.share({ files: [shareFile], title: I.title, text: `${shareText()}\n${shareUrl()}` });
       } catch { /* geannuleerd */ }
     });
     $('shWhatsapp').addEventListener('click', () =>
@@ -542,8 +546,8 @@
     $('shFacebook').addEventListener('click', () =>
       openWin('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(shareUrl())));
     $('shEmail').addEventListener('click', () => {
-      location.href = 'mailto:?subject=' + encodeURIComponent(`Fotojaar – week ${weekIdx + 1}`) +
-        '&body=' + encodeURIComponent(`${shareText()}\n\nSpeel mee: ${shareUrl()}`);
+      location.href = 'mailto:?subject=' + encodeURIComponent(T('mail_subject', { title: I.title, w: weekIdx + 1 })) +
+        '&body=' + encodeURIComponent(`${shareText()}\n\n${T('mail_body', { url: shareUrl() })}`);
     });
     $('shDownload').addEventListener('click', () => {
       if (!shareFile) return;
@@ -551,13 +555,13 @@
       a.href = $('shareImg').dataset.url; a.download = shareFile.name; a.click();
     });
     $('shCopyImg').addEventListener('click', async () => {
-      try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': shareFile })]); toast('Afbeelding gekopieerd'); }
-      catch { toast('Kopiëren lukte niet – bewaar de afbeelding'); }
+      try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': shareFile })]); toast(T('img_copied')); }
+      catch { toast(T('copy_failed')); }
     });
     $('shCopyText').addEventListener('click', async () => {
       const t = `${shareText()}\n${shareUrl()}`;
-      try { await navigator.clipboard.writeText(t); toast('Tekst en link gekopieerd'); }
-      catch { prompt('Kopieer je resultaat:', t); }
+      try { await navigator.clipboard.writeText(t); toast(T('text_copied')); }
+      catch { prompt(T('copy_prompt'), t); }
     });
   }
 
@@ -568,16 +572,16 @@
     ul.innerHTML = '';
     for (let n = currentWeek; n >= 0; n--) {
       const st = load(n), its = itemsForWeek(n);
-      let label = 'nog niet gespeeld';
+      let label = T('not_played');
       if (st.g && st.g.length >= its.length) {
         const tot = its.reduce((s, it, i) => s + points(diffYears(st.g[i], it)), 0);
-        label = `${tot} punten`;
-      } else if (st.g && st.g.length) label = `${st.g.length}/${its.length} gespeeld`;
+        label = T('points_total', { n: tot });
+      } else if (st.g && st.g.length) label = T('played_of', { a: st.g.length, b: its.length });
       const li = document.createElement('li');
       const a = document.createElement('a');
       a.href = n === currentWeek ? './' : `?w=${n + 1}`;
       if (n === weekIdx) a.className = 'cur';
-      a.innerHTML = `<span><b>Week ${n + 1}</b> <span class="muted small">${fmtDate(weekStart(n), { day: 'numeric', month: 'short', year: 'numeric' })}</span></span><span class="muted small"></span>`;
+      a.innerHTML = `<span><b>${T('week_n', { n: n + 1 })}</b> <span class="muted small">${fmtDate(weekStart(n), { day: 'numeric', month: 'short', year: 'numeric' })}</span></span><span class="muted small"></span>`;
       a.lastChild.textContent = label;
       li.appendChild(a);
       ul.appendChild(li);
@@ -610,13 +614,13 @@
   function renderStats() {
     const { played, sum, best, streak, tiers } = computeStats();
     const cells = [
-      [played, 'weken gespeeld'],
-      [played ? Math.round(sum / played) : 0, 'gemiddelde'],
-      [best, 'beste week'],
-      [streak, 'weken op rij'],
+      [played, T('st_played')],
+      [played ? Math.round(sum / played) : 0, T('st_average')],
+      [best, T('st_best')],
+      [streak, T('st_streak')],
     ];
     $('statGrid').innerHTML = cells.map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('');
-    const labels = ['🟩 0–2 jaar', '🟨 3–5 jaar', '🟧 6–10 jaar', '🟥 >10 jaar'];
+    const labels = I.tier_labels;
     const mx = Math.max(1, ...tiers);
     $('dist').innerHTML = tiers.map((c, i) =>
       `<div class="dist-row"><span>${labels[i]}</span><div class="dist-bar" style="width:${(c / mx) * 100}%;background:${TIER_COLOR[i]}"></div><span>${c}</span></div>`
